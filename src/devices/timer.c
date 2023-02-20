@@ -101,6 +101,7 @@ timer_sleep (int64_t ticks)
     t->por_dormir = ticks;
     list_push_back(&dormidos, &thread_current()->elem);
     thread_block();
+    intr_set_level(old);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
