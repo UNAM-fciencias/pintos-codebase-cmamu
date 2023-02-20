@@ -96,7 +96,7 @@ timer_sleep (int64_t ticks)
   ASSERT (intr_get_level () == INTR_ON);
   //while (timer_elapsed (start) < ticks) 
     //thread_yield ();
-    intr_set_level(INTR_OFF);
+    enum intr_level old = intr_set_level(INTR_OFF);
     struct thread* t = thread_current();
     t->por_dormir = ticks;
     list_push_back(&dormidos, &thread_current()->elem);
