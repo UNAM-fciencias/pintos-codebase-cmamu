@@ -1,7 +1,7 @@
 * Integrantes del equipo:
 Adrian Aguilera Moreno. Cta. 421005200.
 Kevin Jair Torres Valencia. Cta. TODO. Agrega número de cuenta.
-
+##########################################################################################################
 TODO. Revisarlas y complementarlas.
 * Preguntas:
 1. Pintos es un Kernel para un sistema con un solo núcleo,
@@ -29,3 +29,4 @@ función thread_block). ¿De que forma se podrá despertar el thread si es el ú
 RESPUESTA. El timer se encargará de despertar (manda una interrupción) el proceso luego de haber pasado
 un cierto número de ticks (los indicados, hasta antes de despertarlo) o, en otro caso el thread
 será despertado cuando sea requerido (eso lo puede indicar el proceso idle).
+##########################################################################################################
