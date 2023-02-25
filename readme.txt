@@ -14,7 +14,8 @@ asignarles tareas en cuanto estén desocupados.
 
 2. ¿Para qué sirve el stack de un proceso?
 
-RESPUESTA. Para almacenar las tareas que este debe realizar.
+RESPUESTA. Para almacenar las tareas que este debe realizar; apuntadores a subprocesos necesarios,
+nombre del subproceso, prioridad con respecto de otros procesos, etc.
 
 3. ¿Qué diferencia hay entre el thread idle y el thread main?
 
