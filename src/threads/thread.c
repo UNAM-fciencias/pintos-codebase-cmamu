@@ -37,6 +37,10 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
+//Lab
+bool compare(struct list_elem* e1, struct list_elem* e2, void* AUX);
+
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {
