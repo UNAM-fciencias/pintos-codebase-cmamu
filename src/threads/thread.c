@@ -241,14 +241,19 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   
-  if(compare(t, cur, NULL))  // Si el proceso actual (cur) tiene mayor prioridad.
+  if(thread_current()->priority > t->priority)  // Si el proceso actual (cur) tiene mayor prioridad.
     list_insert_ordered(&ready_list, &t->elem, compare, NULL); //LABORATORIO.
   else // Si el proceso actual tiene menor prioridad que quién se desbloquea.
-    thread_yield(void);
+    if(!intr_context())
+      thread_yield();
+    else
+      intr_yield_on_return();
   
   // list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
+
+
 }
 
 /* Returns the name of the running thread. */
@@ -361,8 +366,8 @@ thread_set_priority (int new_priority)
   thread_current ()->priority = new_priority;
   
   // Como se ha cambiado la prioridad, debemos comparar contra el next.
-  if (compare(cur, next, NULL))
-    thread_yield(void);
+  if (thread_current()->priority > next->priority)
+    thread_yield();
   
 }
 
