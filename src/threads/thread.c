@@ -231,15 +231,22 @@ thread_block (void)
 void
 thread_unblock (struct thread *t) 
 {
+  // Encontramos el proceso en ejecución.
+  struct thread *cur = running_thread();
+  
   enum intr_level old_level;
 
   ASSERT (is_thread (t));
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  //LABORATORIO 
-  list_insert_ordered(&ready_list, &t->elem, compare, NULL);
-  //list_push_back (&ready_list, &t->elem);
+  
+  if(compare(t, cur, NULL))  // Si el proceso actual (cur) tiene mayor prioridad.
+    list_insert_ordered(&ready_list, &t->elem, compare, NULL); //LABORATORIO.
+  else // Si el proceso actual tiene menor prioridad que quién se desbloquea.
+    thread_yield(void);
+  
+  // list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -347,7 +354,16 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  // Obtenemos el proceso en ejecución y el siguiente a ejecutarse.
+  struct thread *cur  = running_thread();
+  struct thread *next = next_thread_to_run ();
+  
   thread_current ()->priority = new_priority;
+  
+  // Como se ha cambiado la prioridad, debemos comparar contra el next.
+  if (compare(cur, next, NULL))
+    thread_yield(void);
+  
 }
 
 /* Returns the current thread's priority. */
