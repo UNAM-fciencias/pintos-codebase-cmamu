@@ -320,7 +320,7 @@ bool compare(struct list_elem* e1, struct list_elem* e2, void* AUX){
   struct thread* t1 = list_entry(e1, struct thread, elem);
   struct thread* t2 = list_entry(e2, struct thread, elem);
 
-  return t1 ->priority < t2->priority;
+  return t1 ->priority > t2->priority;
 }
 
 /* Yields the CPU.  The current thread is not put to sleep and
