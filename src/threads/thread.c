@@ -370,7 +370,7 @@ thread_set_priority (int new_priority)
   thread_current ()->priority = new_priority;
   
   // Como se ha cambiado la prioridad, debemos comparar contra el next.
-  if (thread_current()->priority > next->priority)
+  if (thread_current()->priority < next->priority)
     thread_yield();
   
 }
