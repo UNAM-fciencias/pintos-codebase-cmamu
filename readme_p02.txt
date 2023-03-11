@@ -37,10 +37,13 @@ debímos revisar que
 debía cambiar al proceso actual por el de mayor prioridad en la ready_list. Esto con la función yield si nuestra
 ready_list esta ordenada (se introducen procesos en orden de prioridad), caso contrario debemos modificar yield
 para que busque el de mayor prioridad.
+
 2. Si un proceso es desbloqueado y tiene mayor prioridad que el proceso actual, se debe cambiar. Nuevamente usando yield,
 pero antes el proceso a desbloquear debe estar en el tope de la lista (ser insertado en orden).
+
 3. Cuando creamos un proceso y tiene mayor prioridad que el proceso actual, se debe cambiar. El código de create nos regala
 el no modificar, pues invoca a unblock.
+
 4. Cuando se cambia la prioridad de un proceso, entonces debemos verificar si esta prioridad es mayor a la del proceso actual.
 O en otro caso, si al proceso actual se le decrementa la prioridad, debemos verificar si sigue siendo el mayor respecto a prioridad.
 En ambos casos, se debe intercambiar si el proceso actual no tiene la prioridad más grande en contraste a algún proceso en la
