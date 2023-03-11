@@ -11,14 +11,17 @@ cambiar el apuntador por el nuevo hilo?
 
 RESPUESTA. Por el tiempo de reacción. Podemos perder información, además el apuntador apunta a la pila y
 no al heap, entonces tenemos un problema de actualización en un pequeño tiempo que puede ser suficiente
-para provocar retrasos.
+para provocar retrasos. Ya que de tener una variable de global no nos permitiria tener un acceso directo
+a la pila del hilo ejecución, por lo que no nos garantizaria que guardaria y actualizaria el contexto
+del hilo actual. 
 
 2. La función switch_threads es la encargada de cambiar de ejecución un hilo por otro. En resumen,
 la función sustituye los valores de ciertos registros. El registro EIP (Instruction Pointer o Program
 Counter) guarda el valor de la siguiente instrucción a ejecutar. ¿Por qué la función switch_threads
 no sustituye dicho registro?
 
-RESPUESTA. Porque la instrucción siempre es la misma, el proceso regresa al punto en donde fue intercambiado.
+RESPUESTA. Porque la instrucción siempre es la misma, el proceso regresa al punto en donde fue intercambiado,
+ya que cada proceso continua desde el punto en que dejo su ejecución.
 
 3. De las dos técnicas para implementar el calendarizador de prioridades: mantener la lista ordenada
 o buscar el máximo. ¿Cúal es más factible utilizar? y ¿Por qué? 
