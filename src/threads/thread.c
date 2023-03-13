@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -40,6 +41,8 @@ static struct lock tid_lock;
 //Lab
 bool compare(struct list_elem* e1, struct list_elem* e2, void* AUX);
 
+//lab 13 de marzo
+static int load_avg = 0;
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
@@ -127,6 +130,19 @@ void
 thread_tick (void) 
 {
   struct thread *t = thread_current ();
+
+//Lab 13 marzo
+  if(timer_ticks() % TIMER_FREQ == 0){
+    int c59_60 = fixpoint(59,60);
+    int c1_60 = fixpoint(1,60);
+    load_avg = c59_60 * load_avg + c1_60 * list_size(&ready_list);
+
+    //for(all_list){
+
+    //}
+  }
+
+  thread_current() -> recent_cpu++;
 
   /* Update statistics. */
   if (t == idle_thread)
@@ -374,9 +390,10 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
   /* Not yet implemented. */
+  thread_current() ->  nice = nice;
 }
 
 /* Returns the current thread's nice value. */
@@ -384,6 +401,7 @@ int
 thread_get_nice (void) 
 {
   /* Not yet implemented. */
+  return thread_current()->nice;
   return 0;
 }
 
