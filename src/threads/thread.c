@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/fixpoint.h"
 #include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -37,12 +38,18 @@ static struct thread *initial_thread;
 
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
-
+/*-----------------  Agregados de Laboratorio ----------------------*/
 //Lab
 bool compare(struct list_elem* e1, struct list_elem* e2, void* AUX);
 
 //lab 13 de marzo
-static int load_avg = 0;
+//static int load_avg = 0;
+
+//Lab de 24 de marzo
+static fixpoint load_avg = 0;
+static fixpoint load_c1 = FIXPOINT(1,60);
+static fixpoint c100 = FIXPOINT(100,1);
+/*---------------------------------------*/
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
@@ -130,8 +137,21 @@ void
 thread_tick (void) 
 {
   struct thread *t = thread_current ();
+  /*  LAB de HOY 27/03/2023*/
+  if(timer_ticks() % TIMER_FREQ == 0){
+    int ready_threads = list_size(&ready_list);
+    if(thread_current() != idle_thread)
+      ready_threads++;
+    
+    fixpoint f_ready_threads = FIXPOINT(ready_threads, 1);
 
-//Lab 13 marzo
+    load_avg = FIXPOINT_PRODUCT(c59_60,load_avg) + FIXPOINT_PRODUCT(c1_60, f_ready_threads);
+  }
+
+  thread_current() -> recent_cpu++;
+
+//Lab 13 marzo Este fue lo que se agrego en el lab pasado
+/*
   if(timer_ticks() % TIMER_FREQ == 0){
     int c59_60 = fixpoint(59,60);
     int c1_60 = fixpoint(1,60);
@@ -140,9 +160,10 @@ thread_tick (void)
     //for(all_list){
 
     //}
-  }
+    
+  }*/
 
-  thread_current() -> recent_cpu++;
+  //thread_current() -> recent_cpu++;
 
   /* Update statistics. */
   if (t == idle_thread)
@@ -393,7 +414,9 @@ void
 thread_set_nice (int nice) 
 {
   /* Not yet implemented. */
-  thread_current() ->  nice = nice;
+  //Lab pasado 13 de Marzo
+  //thread_current() ->  nice = nice;
+  thread_current()-> nice = FIXPOINT(nice,1);
 }
 
 /* Returns the current thread's nice value. */
@@ -401,8 +424,9 @@ int
 thread_get_nice (void) 
 {
   /* Not yet implemented. */
-  return thread_current()->nice;
-  return 0;
+  //Lab de 13 de Marzo
+  return thread_current()-> nice;
+  //return 0;
 }
 
 /* Returns 100 times the system load average. */
@@ -410,7 +434,8 @@ int
 thread_get_load_avg (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  //return 0;
+  return FIXPOINT_TO_INT(FIXPOINT_PRODUCT(load_avg, c_100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
