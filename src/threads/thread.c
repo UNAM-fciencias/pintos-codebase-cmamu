@@ -143,27 +143,27 @@ thread_tick (void)
   struct thread *t = thread_current ();
   /*  LAB de HOY 27/03/2023*/
   if(thread_mlfqs){
-  if(timer_ticks() % TIMER_FREQ == 0){
-    int ready_threads = list_size(&ready_list);
-    if(thread_current() != idle_thread)
-      ready_threads++;
-    
-    fixpoint f_ready_threads = FIXPOINT(ready_threads, 1);
+    if(timer_ticks() % TIMER_FREQ == 0){
+      int ready_threads = list_size(&ready_list);
+      if(thread_current() != idle_thread)
+	      ready_threads++;
+      
+      fixpoint f_ready_threads = FIXPOINT(ready_threads, 1);
 
-    load_avg = FIXPOINT_PRODUCT(c59_60,load_avg) + FIXPOINT_PRODUCT(load_c1, f_ready_threads);
+      load_avg = FIXPOINT_PRODUCT(c59_60,load_avg) + FIXPOINT_PRODUCT(load_c1, f_ready_threads);
 
-    struct list_elem * nodo = list_begin(&all_list);
-    static struct list aux_all_list;
+      struct list_elem * nodo = list_begin(&all_list);
+      static struct list aux_all_list;
 
-    while(nodo != list_end(&all_list)){
-      //Sacando el thread
-      struct thread * t = list_entry(nodo, struct thread, elem);
-      timer_ticks(); //Se vuelve a calcular el recent_cpu ----Agregar formula del pdf---
+      while(nodo != list_end(&all_list)){
+	//Sacando el thread
+	struct thread * t = list_entry(nodo, struct thread, elem);
+	timer_ticks(); //Se vuelve a calcular el recent_cpu ----Agregar formula del pdf---
 
-      thread_set_priority(t -> priority + 1);
+	thread_set_priority(t -> priority + 1);
+      }
+      //Volver a ordenar el all_list
     }
-    //Volver a ordenar el all_list
-  }
   }
 
   thread_current() -> recent_cpu++;
