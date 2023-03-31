@@ -48,7 +48,7 @@ bool compare(struct list_elem* e1, struct list_elem* e2, void* AUX);
 //Lab de 24 de marzo
 static fixpoint load_avg = 0;
 static fixpoint load_c1 = FIXPOINT(1,60);
-static fixpoint c100 = FIXPOINT(100,1);
+static fixpoint c_100 = FIXPOINT(100,1);
 /*---------------------------------------*/
 
 /* Stack frame for kernel_thread(). */
