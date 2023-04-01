@@ -470,7 +470,7 @@ thread_get_recent_cpu (void)
 {
   /* Not yet implemented. */
   //return 0;
-    return FIXPOINT_TO_INT(FIXPOINT_PRODUCT(recent_cpu, c_100));
+    return FIXPOINT_TO_INT(FIXPOINT_PRODUCT(thread_current()->recent_cpu, c_100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
