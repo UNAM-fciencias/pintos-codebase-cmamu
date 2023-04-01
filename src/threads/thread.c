@@ -177,7 +177,7 @@ thread_tick (void)
   nodo = list_begin(&all_list);
   while (nodo != list_end(&all_list))
     { // Añadir ordenado a la lista.
-      list_insert_ordered(&aux_list, &nodo->elem, compare, NULL);
+      list_insert_ordered(&aux_list, &nodo, compare, NULL);
       nodo = list_next(nodo); // Iteramos
     }
   all_list = aux_list;
@@ -187,7 +187,7 @@ thread_tick (void)
   nodo = list_begin(&ready_list);
   while (nodo != list_end(&ready_list))
     { // Añadir ordenado a la lista.
-      list_insert_ordered(&aux_list, &nodo->elem, compare, NULL);
+      list_insert_ordered(&aux_list, &nodo, compare, NULL);
       nodo = list_next(nodo); // Iteramos
     }
   ready_list = aux_list;
