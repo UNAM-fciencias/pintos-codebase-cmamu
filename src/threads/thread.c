@@ -166,7 +166,7 @@ thread_tick (void)
 	/* Calculo de prioridad por proceso: */
 	it -> priority = thread_get_priority() - FIXPOINT_TO_INT(FIXPOINT_DIVISION(it -> recent_cpu, 4)) - FIXPOINT_PRODUCT(2, it -> nice);
 	// Iterar:
-	nodo = list_next(&all_list);
+	nodo = list_next(nodo);
       }
       //Volver a ordenar el all_list
     }
