@@ -142,6 +142,9 @@ thread_tick (void)
 {
   struct thread *t = thread_current ();
   /*  LAB de HOY 27/03/2023*/
+  // Declaramos un nodo aue inicie en la all_list:
+  struct list_elem * nodo = list_begin(&all_list);
+  
   if(thread_mlfqs){
     if(timer_ticks() % TIMER_FREQ == 0){
       int ready_threads = list_size(&ready_list);
@@ -153,8 +156,6 @@ thread_tick (void)
       // load_avg:
       load_avg = FIXPOINT_PRODUCT(c59_60,load_avg) + FIXPOINT_PRODUCT(load_c1, f_ready_threads);
       
-      struct list_elem * nodo = list_begin(&all_list);
-
       // Iteramos sobre la all_list para cambiar prioridad:
       while(nodo != list_end(&all_list)){
 	//Sacando el thread
