@@ -165,6 +165,8 @@ thread_tick (void)
 	it -> recent_cpu = FIXPOINT_TO_INT(FIXPOINT_PRODUCT(FIXPOINT_DIVISION(FIXPOINT_PRODUCT(2, load_avg), FIXPOINT_PRODUCT(2, load_avg) + 1), it->recent_cpu) + it -> nice);
 	/* Calculo de prioridad por proceso: */
 	it -> priority = thread_get_priority() - FIXPOINT_TO_INT(FIXPOINT_DIVISION(it -> recent_cpu, 4)) - FIXPOINT_PRODUCT(2, it -> nice);
+	// Iterar:
+	nodo = list_next(&all_list);
       }
       //Volver a ordenar el all_list
     }
