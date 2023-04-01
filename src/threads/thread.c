@@ -154,9 +154,7 @@ thread_tick (void)
       load_avg = FIXPOINT_PRODUCT(c59_60,load_avg) + FIXPOINT_PRODUCT(load_c1, f_ready_threads);
       
       struct list_elem * nodo = list_begin(&all_list);
-      // Lista temporal para reordenar.
-      static struct list aux_list;
-      
+
       // Iteramos sobre la all_list para cambiar prioridad:
       while(nodo != list_end(&all_list)){
 	//Sacando el thread
@@ -168,12 +166,30 @@ thread_tick (void)
 	// Iterar:
 	nodo = list_next(nodo);
       }
-      //Volver a ordenar el all_list
     }
   }
   
   thread_current() -> recent_cpu++;
 
+  //Volver a ordenar la all_list
+  static struct list aux_list; // Lista temporal para reordenar.
+  nodo = list_begin(&all_list);
+  while (nodo != list_end(&all_list))
+    { // Añadir ordenado a la lista.
+      list_insert_ordered(&aux_list, &nodo->elem, compare, NULL);
+      nodo = list_next(nodo); // Iteramos
+    }
+  all_list = aux_list;
+
+  //Volver a ordenar la ready_list
+  list_empty(&aux_list);
+  nodo = list_begin(&ready_list);
+  while (nodo != list_end(&ready_list))
+    { // Añadir ordenado a la lista.
+      list_insert_ordered(&aux_list, &nodo->elem, compare, NULL);
+      nodo = list_next(nodo); // Iteramos
+    }
+  ready_list = aux_list;
 /***********************************************************************/
 //Lab 13 marzo Este fue lo que se agrego en el lab pasado
 /*
