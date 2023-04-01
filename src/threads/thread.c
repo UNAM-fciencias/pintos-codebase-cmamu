@@ -149,23 +149,27 @@ thread_tick (void)
 	      ready_threads++;
       
       fixpoint f_ready_threads = FIXPOINT(ready_threads, 1);
-
+      
+      // load_avg:
       load_avg = FIXPOINT_PRODUCT(c59_60,load_avg) + FIXPOINT_PRODUCT(load_c1, f_ready_threads);
-
+      
       struct list_elem * nodo = list_begin(&all_list);
-      static struct list aux_all_list;
-
+      // Lista temporal para reordenar.
+      static struct list aux_list;
+      
+      // Iteramos sobre la all_list para cambiar prioridad:
       while(nodo != list_end(&all_list)){
 	//Sacando el thread
-	struct thread * t = list_entry(nodo, struct thread, elem);
-	timer_ticks(); //Se vuelve a calcular el recent_cpu ----Agregar formula del pdf---
-
-	thread_set_priority(t -> priority + 1);
+	struct thread * it = list_entry(nodo, struct thread, elem);
+	//Se vuelve a calcular el recent_cpu ---- Fórmula del pdf -----
+	it -> recent_cpu = FIXPOINT_TO_INT(FIXPOINT_PRODUCT(FIXPOINT_DIVISION(FIXPOINT_PRODUCT(2, load_avg), FIXPOINT_PRODUCT(2, load_avg) + 1), it->recent_cpu) + it -> nice);
+	/* Calculo de prioridad por proceso: */
+	it -> priority = thread_get_priority() - FIXPOINT_TO_INT(FIXPOINT_DIVISION(it -> recent_cpu, 4)) - FIXPOINT_PRODUCT(2, it -> nice);
       }
       //Volver a ordenar el all_list
     }
   }
-
+  
   thread_current() -> recent_cpu++;
 
 /***********************************************************************/
@@ -463,9 +467,10 @@ int
 thread_get_recent_cpu (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  //return 0;
+    return FIXPOINT_TO_INT(FIXPOINT_PRODUCT(recent_cpu, c_100));
 }
-
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
