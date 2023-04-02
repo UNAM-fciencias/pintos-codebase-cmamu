@@ -11,6 +11,8 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/fixpoint.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -36,6 +38,22 @@ static struct thread *initial_thread;
 
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
+/*-----------------  Agregados de Laboratorio ----------------------*/
+//Lab
+bool compare(struct list_elem* e1, struct list_elem* e2, void* AUX);
+
+//lab 13 de marzo
+//static int load_avg = 0;
+
+//Lab de 24 de marzo
+static fixpoint load_avg = 0;
+static fixpoint c1_60 = FIXPOINT(1,60);
+//static fixpoint load_c1 = FIXPOINT(1,60);
+//static fixpoint c59_60 = FIXPOINT(59,60);
+static fixpoint c_100 = FIXPOINT(100,1);
+static fixpoint c59_60 = FIXPOINT(59,60);
+static fixpoint load_c1 = FIXPOINT(1,60);
+/*---------------------------------------*/
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
@@ -123,6 +141,72 @@ void
 thread_tick (void) 
 {
   struct thread *t = thread_current ();
+  /*  LAB de HOY 27/03/2023*/
+  // Declaramos un nodo aue inicie en la all_list:
+  struct list_elem * nodo = list_begin(&all_list);
+  
+  if(thread_mlfqs){
+    if(timer_ticks() % TIMER_FREQ == 0){
+      int ready_threads = list_size(&ready_list);
+      if(thread_current() != idle_thread)
+	      ready_threads++;
+      
+      fixpoint f_ready_threads = FIXPOINT(ready_threads, 1);
+      
+      // load_avg:
+      load_avg = FIXPOINT_PRODUCT(c59_60,load_avg) + FIXPOINT_PRODUCT(load_c1, f_ready_threads);
+      
+      // Iteramos sobre la all_list para cambiar prioridad:
+      while(nodo != list_end(&all_list)){
+	//Sacando el thread
+	struct thread * it = list_entry(nodo, struct thread, elem);
+	//Se vuelve a calcular el recent_cpu ---- Fórmula del pdf -----
+	it -> recent_cpu = FIXPOINT_TO_INT(FIXPOINT_PRODUCT(FIXPOINT_DIVISION(FIXPOINT_PRODUCT(2, load_avg), FIXPOINT_PRODUCT(2, load_avg) + 1), it->recent_cpu) + it -> nice);
+	/* Calculo de prioridad por proceso: */
+	it -> priority = thread_get_priority() - FIXPOINT_TO_INT(FIXPOINT_DIVISION(it -> recent_cpu, 4)) - FIXPOINT_PRODUCT(2, it -> nice);
+	// Iterar:
+	nodo = list_next(nodo);
+      }
+    }
+  }
+  
+  thread_current() -> recent_cpu++;
+
+  //Volver a ordenar la all_list
+  static struct list aux_list; // Lista temporal para reordenar.
+  nodo = list_begin(&all_list);
+  while (nodo != list_end(&all_list))
+    { // Añadir ordenado a la lista.
+      list_insert_ordered(&aux_list, &nodo, compare, NULL);
+      nodo = list_next(nodo); // Iteramos
+    }
+  all_list = aux_list;
+
+  //Volver a ordenar la ready_list
+  list_empty(&aux_list);
+  nodo = list_begin(&ready_list);
+  while (nodo != list_end(&ready_list))
+    { // Añadir ordenado a la lista.
+      list_insert_ordered(&aux_list, &nodo, compare, NULL);
+      nodo = list_next(nodo); // Iteramos
+    }
+  ready_list = aux_list;
+/***********************************************************************/
+//Lab 13 marzo Este fue lo que se agrego en el lab pasado
+/*
+  if(timer_ticks() % TIMER_FREQ == 0){
+    int c59_60 = fixpoint(59,60);
+    int c1_60 = fixpoint(1,60);
+    load_avg = c59_60 * load_avg + c1_60 * list_size(&ready_list);
+
+    //for(all_list){
+
+    //}
+    
+  }*/
+
+  //thread_current() -> recent_cpu++;
+/************************************************************************/
 
   /* Update statistics. */
   if (t == idle_thread)
@@ -237,9 +321,17 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  
+  // list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
+
+  list_insert_ordered(&ready_list, &t->elem, compare, NULL); //Introducimos en orden el elemento a desbloquear en la ready_list.
+  if(thread_current ()->priority < t->priority)  // Si el proceso actual tiene menor prioridad que quién se desbloquea.
+    if(!intr_context())
+      thread_yield();
+    else
+      intr_yield_on_return();
 }
 
 /* Returns the name of the running thread. */
@@ -295,6 +387,15 @@ thread_exit (void)
   schedule ();
   NOT_REACHED ();
 }
+/* ESTO SE AGREGO EN LABORATORIO
+* Regresa true si uno es menor que otro. 
+*/
+bool compare(struct list_elem* e1, struct list_elem* e2, void* AUX){
+  struct thread* t1 = list_entry(e1, struct thread, elem);
+  struct thread* t2 = list_entry(e2, struct thread, elem);
+
+  return t1 ->priority > t2->priority;
+}
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
@@ -307,8 +408,9 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  if (cur != idle_thread)
+    list_insert_ordered(&ready_list, &cur->elem, compare, NULL); 
+    //list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -336,6 +438,11 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  
+  // Como se ha cambiado la prioridad, debemos comparar contra el next.
+  //if (thread_current ()->priority < next_thread_to_run ()->priority)
+    thread_yield();
+  
 }
 
 /* Returns the current thread's priority. */
@@ -347,9 +454,12 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
   /* Not yet implemented. */
+  //Lab pasado 13 de Marzo
+  //thread_current() ->  nice = nice;
+  thread_current()-> nice = FIXPOINT(nice,1);
 }
 
 /* Returns the current thread's nice value. */
@@ -357,7 +467,9 @@ int
 thread_get_nice (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  //Lab de 13 de Marzo
+  return thread_current()-> nice;
+  //return 0;
 }
 
 /* Returns 100 times the system load average. */
@@ -365,7 +477,8 @@ int
 thread_get_load_avg (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  //return 0;
+  return FIXPOINT_TO_INT(FIXPOINT_PRODUCT(load_avg, c_100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -373,9 +486,10 @@ int
 thread_get_recent_cpu (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  //return 0;
+    return FIXPOINT_TO_INT(FIXPOINT_PRODUCT(thread_current()->recent_cpu, c_100));
 }
-
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
