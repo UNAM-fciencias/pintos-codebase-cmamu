@@ -110,14 +110,10 @@ struct list
                      - offsetof (STRUCT, MEMBER.next)))
 
 /* List initialization.
-
    A list may be initialized by calling list_init():
-
        struct list my_list;
        list_init (&my_list);
-
    or with an initializer using LIST_INITIALIZER:
-
        struct list my_list = LIST_INITIALIZER (my_list); */
 #define LIST_INITIALIZER(NAME) { { NULL, &(NAME).tail }, \
                                  { &(NAME).head, NULL } }
