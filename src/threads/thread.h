@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -25,13 +26,11 @@ typedef int tid_t;
 #define PRI_MAX 63                      /* Highest priority. */
 
 /* A kernel thread or user process.
-
    Each thread structure is stored in its own 4 kB page.  The
    thread structure itself sits at the very bottom of the page
    (at offset 0).  The rest of the page is reserved for the
    thread's kernel stack, which grows downward from the top of
    the page (at offset 4 kB).  Here's an illustration:
-
         4 kB +---------------------------------+
              |          kernel stack           |
              |                |                |
@@ -53,22 +52,18 @@ typedef int tid_t;
              |               name              |
              |              status             |
         0 kB +---------------------------------+
-
    The upshot of this is twofold:
-
       1. First, `struct thread' must not be allowed to grow too
          big.  If it does, then there will not be enough room for
          the kernel stack.  Our base `struct thread' is only a
          few bytes in size.  It probably should stay well under 1
          kB.
-
       2. Second, kernel stacks must not be allowed to grow too
          large.  If a stack overflows, it will corrupt the thread
          state.  Thus, kernel functions should not allocate large
          structures or arrays as non-static local variables.  Use
          dynamic allocation with malloc() or palloc_get_page()
          instead.
-
    The first symptom of either of these problems will probably be
    an assertion failure in thread_current(), which checks that
    the `magic' member of the running thread's `struct thread' is
@@ -93,22 +88,76 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    int64_t por_dormir;
-
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
-    /* Owned by thread.c. */
+		/* DATA STRUCTURES FOR ALARM CLOCK */
+
+		int64_t sleep_time;
+    struct list_elem sleep_list_elem;
+
+		/* DATA STRUCTURES FOR PRIORITY SCHEDULING */
+
+		/*
+    original_priority -
+    To restore priority after releasing donated/received priority
+    */
+    int original_priority;
+
+    /*
+    To determine the lock the thread is waiting for if any
+    It would allow us to recursively/iteratively donate priority
+    */
+    struct lock * wait_lock;
+
+    /*
+    List of possible donor threads
+    It would allow the thread to release the donated/received priority
+    when releasing the lock, by clearing the wait_lock element
+    of the donor threads waiting on the currently released lock
+    */
+    struct list donors_list;
+
+    /*
+    donor_elem would allow this thread to add itself to the donors list
+    of the thread it is donating priority
+    */
+    struct list_elem donor_elem;
+		int recent_cpu;                     /* Recent CPU*/
+    int nice;
+
+		/* Código de salida de este proceso*/
+    int exit_code;
+
+    /* Lista de archivos abiertos con (fd) -> (file *) mapping */
+    struct list file_list;
+
+    int fd_count;
+
+    /* Lista de procesos secundarios en forma de struct child
+       definido en process.h */
+    struct list children;
+
+    /* Referencia al parent thread */
+    struct thread * parent;
+
+    bool production_flag;
+
+    struct semaphore production_sem;
+
+    struct file * file;
+
+    /* Se usa cuando un thread espera a un hijo */
+    struct semaphore child_sem;
+    tid_t waiton_child;
+
     unsigned magic;                     /* Detects stack overflow. */
   };
 
-/* If false (default), use round-robin scheduler.
-   If true, use multi-level feedback queue scheduler.
-   Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
-
+int load_avg;
 void thread_init (void);
 void thread_start (void);
 
@@ -139,5 +188,4 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
 #endif /* threads/thread.h */
