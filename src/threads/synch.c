@@ -261,8 +261,7 @@ lock_acquire (struct lock *lock)
 void
 donate_priority(struct lock* lock)
 {
-  //TODO: Assert that interrupts are off
-  //TODO: Assert lock->holder != NULL
+  
 
   thread_current()->wait_lock = lock;
 

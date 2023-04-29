@@ -83,9 +83,7 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    struct list_elem allelem;           /* List element for all threads list. */
-
-    /* Shared between thread.c and synch.c. */
+    struct list_elem allelem;           /* Lista de todos los threads. */
     struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
@@ -93,22 +91,17 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
-		/* DATA STRUCTURES FOR ALARM CLOCK */
-
 		int64_t sleep_time;
     struct list_elem sleep_list_elem;
 
-		/* DATA STRUCTURES FOR PRIORITY SCHEDULING */
-
 		/*
-    original_priority -
-    To restore priority after releasing donated/received priority
+    original_priority
     */
     int original_priority;
 
     /*
-    To determine the lock the thread is waiting for if any
-    It would allow us to recursively/iteratively donate priority
+    Para determinar el bloqueo que espera el 
+    thread, si lo hay, nos permitiría donar prioridad.
     */
     struct lock * wait_lock;
 
@@ -120,10 +113,6 @@ struct thread
     */
     struct list donors_list;
 
-    /*
-    donor_elem would allow this thread to add itself to the donors list
-    of the thread it is donating priority
-    */
     struct list_elem donor_elem;
 		int recent_cpu;                     /* Recent CPU*/
     int nice;
