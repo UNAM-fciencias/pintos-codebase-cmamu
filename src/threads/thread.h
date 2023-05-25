@@ -14,6 +14,9 @@ enum thread_status
     THREAD_DYING        /* About to be destroyed. */
   };
 
+// semaforo que vaya en child para el caso en el que el padre ya no este activo, el hijo no sabe que el padre
+// llamo a wait? que intente acceder a una estructura del padre
+
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
@@ -23,6 +26,17 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+#ifdef USERPROG
+struct child {
+   struct list_elem elem;
+   struct semaphore wait;
+   tid_t tid;
+   struct thread* self;
+   struct thread* parent;
+   bool load_ok;
+};
+#endif
 
 /* A kernel thread or user process.
 
@@ -89,9 +103,20 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+    
+    struct list children; // lista de hijos, llenar en el exec?
+    struct child self;
+
+    int priority_original;              /* Prioridad original */
+    int priority_old;                   /* Anterior prioridad */
+    struct lock* donation;
+
+    int contador;                       /* Contador de donaciones */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+   int64_t por_dormir;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

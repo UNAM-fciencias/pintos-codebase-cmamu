@@ -41,8 +41,14 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  // si ok true regresar tid, si no el -1
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+
+  // revisar el ok con tid?
+  // usar otro semaforo en child para evitar concurrencia, menos talacha si esta en el padre????
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -130,8 +136,11 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   if (!success)  {
     palloc_free_page (file_name);
+    thread_current()->self->load_ok = false; // necesitamos algo para acceder a nuestra propia estructura, necesito notificarle al
+    // padre que s
     thread_exit ();
   } else {
+    thread_current()->self->load_ok = true;
     if_.esp = put_args(file_name, size);
     strlcpy (thread_current()->name, file_name, sizeof thread_current()->name);
   }
@@ -160,7 +169,20 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  timer_sleep(200);
+  // Implementar que el proceso hijo del que invoque esta funcion termine su ejecucion
+  //timer_sleep(200);
+
+  // caso cuando se le hace sema_up -> la hace el hijo
+  struct thread* t = thread_current();
+  struct list_elem* e = list_begin(&thread_current()->children);
+  for(e = list_begin(&t->children); e != list_end(&t->children); e = next()){
+    struct child* c = list_entry(e, struct child, elem);
+
+    if(c->tid == child_tid) {
+      sema_down(c->wait);
+      break;
+    }
+  }
   return -1;
 }
 
