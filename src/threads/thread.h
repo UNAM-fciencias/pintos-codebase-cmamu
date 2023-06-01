@@ -106,7 +106,7 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     
     struct list children; // lista de hijos, llenar en el exec?
-    struct child self;
+    //struct child self;
 
     int priority_original;              /* Prioridad original */
     int priority_old;                   /* Anterior prioridad */
