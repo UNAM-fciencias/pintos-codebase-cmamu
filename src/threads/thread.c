@@ -37,9 +37,6 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
-/* Funcion de comparacion */
-bool compare(struct list_elem* e1, struct list_elem* e2, void* AUX);
-
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {
@@ -101,8 +98,6 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-
-
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -176,6 +171,7 @@ thread_create (const char *name, int priority,
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
+  enum intr_level old_level;
 
   ASSERT (function != NULL);
 
@@ -188,20 +184,24 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  /****************************************************************************/
 #ifdef USERPROG
-  // Hilo actual es el padre que crea un hijo.
   struct thread *cur = thread_current ();
   t->padre = cur;
-
-  // Creamos la estructura "process" asociada al hijo.
   struct process* p = (struct process*)calloc(1, sizeof(struct process));
   p->tid = tid;
   p->t = t;
-  p->exit_status = -1; // Indefinido.
+  p->exit_status = -1;
   p->elem = t->elem;
   list_push_back(&cur->hijos, &p->elem);
 #endif
-  
+/***************************************************************************/
+
+  /* Prepare thread for first run by initializing its stack.
+     Do this atomically so intermediate values for the 'stack' 
+     member cannot be observed. */
+  old_level = intr_disable ();
+
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -217,13 +217,7 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  struct child* c = (struct child*)malloc(sizeof(struct child));
-  c->parent = thread_current();
-  c->self = t;
-  c->tid = t->tid;
-  t->self = c;
-  sema_init(c->wait, 0);
-  list_push_back(&t->children, &c->elem);
+  intr_set_level (old_level);
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -264,18 +258,9 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered(&ready_list, &t->elem, compare, NULL);
-  
+  list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
-
-  if(thread_current()->priority < t->priority){
-    if(!intr_context())
-      thread_yield();
-    else 
-      intr_yield_on_return();
-  }
-
 }
 
 /* Returns the name of the running thread. */
@@ -332,14 +317,6 @@ thread_exit (void)
   NOT_REACHED ();
 }
 
-// Regresa true si uno es menor que otro
-bool compare(struct list_elem* e1, struct list_elem* e2, void* AUX) {
-  struct thread* t1 = list_entry(e1, struct thread, elem);
-  struct thread* t2 = list_entry(e2, struct thread, elem);
-  
-  return t1->priority > t2->priority;
-}
-
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
 void
@@ -352,8 +329,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered(&ready_list, &cur->elem, compare, NULL);
-    //list_push_back (&ready_list, &cur->elem);
+    list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -380,25 +356,7 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  
-  struct thread* t = thread_current();
-
-  if(t->donation != NULL){
-
-    // Contexto de donacion
-    t->donation->priority_old = new_priority;
-    t->priority_original = new_priority;
-
-  } else {
-
-    int old_priority = t->priority;
-    t->priority = new_priority;
-
-    if(old_priority > new_priority)
-      thread_yield();
-    
-  }
-
+  thread_current ()->priority = new_priority;
 }
 
 /* Returns the current thread's priority. */
@@ -514,8 +472,9 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
+  /********************************************************/
   enum intr_level old_level;
-
+  /********************************************************/
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT (name != NULL);
@@ -526,18 +485,16 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
 
+  /*************************************************************************/
 #ifdef USERPROG
   list_init(&t->hijos);
 #endif
   
   t->magic = THREAD_MAGIC;
-
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
-
-  // Inicializa contador
-  t->contador = 0;
+  /*************************************************************************/
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
