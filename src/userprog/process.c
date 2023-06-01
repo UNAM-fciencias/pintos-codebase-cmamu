@@ -41,18 +41,26 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  // si ok true regresar tid, si no el -1
-
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
 
-  // revisar el ok con tid?
-  // usar otro semaforo en child para evitar concurrencia, menos talacha si esta en el padre????
+  /*-----------------------------------------------------------*/
+  struct thread *cur = thread_current ();
+  sema_init(&cur->wait, 0);
 
-  if (tid == TID_ERROR)
+  sema_init(&cur->cargado, 0);
+
+  sema_down(&cur->cargado);
+  
+  if (tid == TID_ERROR){
     palloc_free_page (fn_copy); 
+  return -1;
+  }
+  if (!cur->cargado_correctamente)
+    return -1;
   return tid;
-}
+}/*-----------------------------------------------------------*/
+
 
 static void*
 put_args(char* command, int size) {
@@ -98,7 +106,7 @@ put_args(char* command, int size) {
   
   return (void*)esp_p;
 }
-
+/*
 static size_t
 str_tokenize (char* str, char token)
 {
@@ -106,7 +114,7 @@ str_tokenize (char* str, char token)
   char* tmp = str;
   while(*tmp != 0) {
     /* If find space character, then replace by end string char. */
-    if(*tmp == token)
+    /*if(*tmp == token)
       *tmp = 0;
     
     tmp++;
@@ -114,6 +122,7 @@ str_tokenize (char* str, char token)
   }
   return size;
 }
+*/
 
 /* A thread function that loads a user process and starts it
    running. */
@@ -124,7 +133,9 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
-  int size = str_tokenize (file_name, ' ');
+  /*int size = str_tokenize (file_name, ' ');*/
+
+  int size = 0;
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -133,16 +144,28 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+  /****************************************************************/
+  char* tmp = file_name;
+  while(*tmp != 0) {
+    if(*tmp == ' ')
+      *tmp = 0;
+    tmp++;
+    size++;
+  }
+
+  struct thread *cur = thread_current ();
+  sema_up(&cur->padre->cargado);
+  /****************************************************************/
+
   /* If load failed, quit. */
   if (!success)  {
-    palloc_free_page (file_name);
-    thread_current()->self->load_ok = false; // necesitamos algo para acceder a nuestra propia estructura, necesito notificarle al
-    // padre que s
+    /*palloc_free_page (file_name);*/
+    cur->padre->cargado_correctamente = false;
     thread_exit ();
   } else {
-    thread_current()->self->load_ok = true;
     if_.esp = put_args(file_name, size);
     strlcpy (thread_current()->name, file_name, sizeof thread_current()->name);
+    cur->padre->cargado_correctamente = true;
   }
 
   palloc_free_page (file_name);
@@ -169,21 +192,26 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  // Implementar que el proceso hijo del que invoque esta funcion termine su ejecucion
-  //timer_sleep(200);
+  /*timer_sleep(200);
+  return -1;*/
 
-  // caso cuando se le hace sema_up -> la hace el hijo
-  struct thread* t = thread_current();
-  struct list_elem* e = list_begin(&thread_current()->children);
-  for(e = list_begin(&t->children); e != list_end(&t->children); e = next()){
-    struct child* c = list_entry(e, struct child, elem);
+  /*********************************************************************/
+  struct thread *cur = thread_current ();
+  struct list *hijos = &cur->hijos;
+  struct list_elem *hijo_elem;
 
-    if(c->tid == child_tid) {
-      sema_down(c->wait);
-      break;
+  if (!list_empty(hijos)) {
+    for (hijo_elem = list_front(hijos); hijo_elem != list_end(hijos); hijo_elem = list_next(hijo_elem)) {
+      struct process *hijo = list_entry(hijo_elem, struct process, elem);
+      if (hijo->tid == child_tid) {
+        sema_down(&cur->wait);
+        list_remove(hijo_elem);
+        return hijo->exit_status;
+      }
     }
   }
   return -1;
+  /*********************************************************************/
 }
 
 /* Free the current process's resources. */
@@ -193,8 +221,8 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  int current_thread_exit_status = 0;
-  printf("%s: exit(%d)\n", cur->name, current_thread_exit_status);
+  /*int current_thread_exit_status = 0;
+  printf("%s: exit(%d)\n", cur->name, current_thread_exit_status);*/
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
