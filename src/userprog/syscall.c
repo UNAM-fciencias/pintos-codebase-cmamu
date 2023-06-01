@@ -1,14 +1,11 @@
 #include "userprog/syscall.h"
+#include "userprog/process.h" // P05.
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
 static void syscall_handler (struct intr_frame *);
-static int32_t write_wrapper (int32_t *esp);
-static void exit_wrapper (int32_t *esp);
-static int32_t write (int file_descriptor, char* buffer, unsigned size);
-static void exit (int exit_status);
 
 void
 syscall_init (void) 
@@ -19,49 +16,69 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  int32_t* esp = f->esp;
-  int32_t syscall = *esp;
+  uint32_t* esp = f->esp;
+  uint32_t syscall = *esp;
   esp++;
   
   switch(syscall) {
     case SYS_WRITE: {
-      f->eax = write_wrapper (esp);
+      int fd = *esp;
+      esp++;
+      void* buffer = (void*)*esp;
+      esp++;
+      unsigned int size = *esp;
+      
+      putbuf(buffer, size);
+      
       break;
     }
-    case SYS_EXIT: {
-      exit_wrapper (esp);
-      break;
-    }
-    default: {
-      printf ("unsupported syscall\n");
+    case SYS_EXIT: { // P05.
+
+      // Obtención del argumento.
+      int status = *esp;
+
+      printf("%s: exit(%d)\n", thread_current()->name, status);
+
+      // Guardado del valor de salida.
+      struct thread *cur = thread_current ();
+      struct thread *padre = cur->father;
+      if (padre != NULL) {
+        // Buscar al hijo en la lista de hijos
+        // del padre y asignar el exit_status.
+        struct list *hijos = &padre->children;
+        struct list_elem *hijo_elem;
+        if (!list_empty(hijos)) {
+          for (hijo_elem = list_front(hijos); hijo_elem != list_end(hijos); hijo_elem = list_next(hijo_elem)) {
+            struct process *hijo = list_entry(hijo_elem, struct process, elem);
+            if (hijo->tid == cur->tid) {
+              hijo->exit_status = status;
+              sema_up(&padre->wait);
+            }
+          }
+        }
+      }
+
       thread_exit ();
+
+      break;
+    }
+    case SYS_WAIT: { // P05.
+
+      // Obtención del argumento.
+      tid_t child_tid = *esp;
+
+      f->eax = process_wait(child_tid);
+
+      break;
+    }
+    case SYS_EXEC: { // P05.
+      
+      // Obtención del argumento.
+      const char* cmd = (char*)*esp;
+
+      f->eax = (uint32_t) process_execute(cmd);
+
+      break;
     }
   }
-}
-
-/* Write Syscall Implementation */
-static int32_t 
-write_wrapper (int32_t *esp) {
-  int file_descriptor = *esp;
-  char *buffer = (char *) *++esp;
-  unsigned size = (unsigned) *++esp;
-  return write (file_descriptor, buffer, size);
-}
-
-static int32_t 
-write (int file_descriptor UNUSED, char* buffer, unsigned size) {
-  putbuf (buffer, size);
-  return size;
-}
-
-/* Write Syscall Implementation */
-static void 
-exit_wrapper (int32_t *esp) {
-  int exit_status = *esp;
-  exit (exit_status);
-}
-
-static void 
-exit (int exit_status UNUSED) {
-  thread_exit ();
 }
