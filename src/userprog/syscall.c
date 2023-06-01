@@ -38,11 +38,41 @@ syscall_handler (struct intr_frame *f UNUSED)
   switch(syscall) {
     case SYS_WRITE: {
       // registro eax nos sirve para almacenar ...
-      f->eax = write_wrapper (esp); // invocamos un wrapper, en ese w extraer los argumentos
+      //f->eax = write_wrapper (esp); // invocamos un wrapper, en ese w extraer los argumentos
+      int fd = *esp;
+      esp++;
+      void* buffer = (void*)*esp;
+      esp++;
+      unsigned int size = *esp;
+      putbuf(buffer, size);
       break;
     }
     case SYS_EXIT: {
-      exit_wrapper (esp);
+      //exit_wrapper (esp);
+      //printf("%s: exit(0)\n", thread_current()->name);
+      // Obtención del argumento.
+      int status = *esp;
+      printf("%s: exit(%d)\n", thread_current()->name, status);      
+      // Guardado del valor de salida.
+      struct thread *cur = thread_current ();
+      struct thread *padre = cur->padre;
+      if (padre != NULL) {
+        // Buscar al hijo en la lista de hijos
+        // del padre y asignar el exit_status.
+        struct list *hijos = &padre->hijos;
+        struct list_elem *hijo_elem;
+        if (!list_empty(hijos)) {
+          for (hijo_elem = list_front(hijos); hijo_elem != list_end(hijos); hijo_elem = list_next(hijo_elem)) {
+            struct process *hijo = list_entry(hijo_elem, struct process, elem);
+            if (hijo->tid == cur->tid) {
+              hijo->exit_status = status;
+              sema_up(&padre->wait);
+            }
+          }
+        }
+      }
+
+      thread_exit ();
       break;
     }
     case SYS_EXEC: {
@@ -53,14 +83,18 @@ syscall_handler (struct intr_frame *f UNUSED)
       // cachar cuando el proceso de usario no se pueda crear y regresar, debe de hacer el process_execute
       // trabajar con memoria compartida
       // modificar start_process?
-      char* cmd = (char*)*esp;
-      f->eax = process_execute(cmd);
+      //char* cmd = (char*)*esp;
+      //f->eax = process_execute(cmd);
+      const char* cmd = (char*)*esp;
+      f->eax = (uint32_t) process_execute(cmd);
       break;
     }
     case SYS_WAIT: {
-      int pid = (int)*esp;
-      f->eax = process_wait(pid);
-      break;
+	//int pid = (int)*esp;
+	//f->eax = process_wait(pid);
+	tid_t child_tid = *esp;
+	f->eax = process_wait(child_tid);
+	break;
     }
     default: {
       printf ("unsupported syscall\n");
