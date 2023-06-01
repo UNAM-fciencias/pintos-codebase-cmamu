@@ -21,7 +21,6 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-static size_t str_tokenize (char* str, char token);
 static void* put_args(char* command, int size);
 
 /* Starts a new thread running a user program loaded from
@@ -41,71 +40,29 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  /****************************************************************/
+  struct thread *cur = thread_current ();
+  sema_init(&cur->wait, 0);
+  /****************************************************************/
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
 
-  /*-----------------------------------------------------------*/
-  struct thread *cur = thread_current ();
-  sema_init(&cur->wait, 0);
-
+  /****************************************************************/
   sema_init(&cur->cargado, 0);
-
   sema_down(&cur->cargado);
-  
-  if (tid == TID_ERROR){
-    palloc_free_page (fn_copy); 
-  return -1;
+
+  if (tid == TID_ERROR) {
+    palloc_free_page (fn_copy);
+    return -1;
   }
   if (!cur->cargado_correctamente)
     return -1;
+
   return tid;
-}/*-----------------------------------------------------------*/
-
-
-static void*
-put_args(char* command, int size) {
-  char* esp_c = PHYS_BASE - 1;
-  *esp_c = 0;
-  esp_c--;
-  
-  int index;
-  /* Put the args in the top of the stack in double array of char format. */
-  for(index = size - 1; index >= 0; index--) {
-    /* If there are extra end of string chars, ignore them. */
-    if(command[index] != 0 || command[index + 1] != 0) {
-      *esp_c = command[index];
-      esp_c--;
-    }
-  }
-  
-  char* args_first = esp_c;
-  
-  *((uint8_t*)esp_c) = 0;
-  uint32_t* esp_p = (uint32_t*)esp_c;
-  esp_p--;
-  *esp_p = 0;
-  esp_p--;
-  
-  char* args_last;
-  int size_args = 0;
-  /* Put the pointers */
-  for(args_last = PHYS_BASE - 2; args_last >= args_first; args_last--) {
-    if(*args_last == 0) {
-      *esp_p = (uint32_t)args_last + 1;
-      size_args++;
-      esp_p--;
-    }
-  }
-  
-  *esp_p = (uint32_t)(esp_p + 1);
-  esp_p--;
-  /* Put the argc */
-  *esp_p = (uint32_t)size_args;
-  esp_p--;
-  *esp_p = 0;
-  
-  return (void*)esp_p;
+  /******************************************************************/
 }
+
 /*
 static size_t
 str_tokenize (char* str, char token)
@@ -113,16 +70,15 @@ str_tokenize (char* str, char token)
   size_t size = 0;
   char* tmp = str;
   while(*tmp != 0) {
-    /* If find space character, then replace by end string char. */
-    /*if(*tmp == token)
+    
+    if(*tmp == token)
       *tmp = 0;
     
     tmp++;
     size++;
   }
   return size;
-}
-*/
+}*/
 
 /* A thread function that loads a user process and starts it
    running. */
@@ -132,10 +88,17 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
-  /*int size = str_tokenize (file_name, ' ');*/
-
+  
   int size = 0;
+  char* tmp = file_name;
+  while(*tmp != 0) {
+    /* If find space character, then replace by end string char. */
+    if(*tmp == ' ')
+      *tmp = 0;
+    
+    tmp++;
+    size++;
+  }
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -144,31 +107,28 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  /****************************************************************/
-  char* tmp = file_name;
-  while(*tmp != 0) {
-    if(*tmp == ' ')
-      *tmp = 0;
-    tmp++;
-    size++;
-  }
-
+  /****************************************************/
   struct thread *cur = thread_current ();
   sema_up(&cur->padre->cargado);
-  /****************************************************************/
+  /****************************************************/
 
   /* If load failed, quit. */
-  if (!success)  {
-    /*palloc_free_page (file_name);*/
+  
+  if (!success) {
+    /**************************************************/
     cur->padre->cargado_correctamente = false;
+    /**************************************************/
+
     thread_exit ();
   } else {
-    if_.esp = put_args(file_name, size);
+		if_.esp = put_args(file_name, size);
     strlcpy (thread_current()->name, file_name, sizeof thread_current()->name);
+    /**************************************************/
     cur->padre->cargado_correctamente = true;
-  }
-
-  palloc_free_page (file_name);
+    /**************************************************/
+	}
+	
+	palloc_free_page (file_name);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -195,7 +155,7 @@ process_wait (tid_t child_tid UNUSED)
   /*timer_sleep(200);
   return -1;*/
 
-  /*********************************************************************/
+  /********************************************************************/
   struct thread *cur = thread_current ();
   struct list *hijos = &cur->hijos;
   struct list_elem *hijo_elem;
@@ -211,8 +171,8 @@ process_wait (tid_t child_tid UNUSED)
     }
   }
   return -1;
-  /*********************************************************************/
 }
+/************************************************************************/
 
 /* Free the current process's resources. */
 void
@@ -220,9 +180,6 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
-  /*int current_thread_exit_status = 0;
-  printf("%s: exit(%d)\n", cur->name, current_thread_exit_status);*/
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -326,6 +283,52 @@ static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
+                         
+                          
+static void*
+put_args(char* command, int size) {
+  char* esp_c = PHYS_BASE - 1;
+  *esp_c = 0;
+  esp_c--;
+  
+  int index;
+  /* Put the agrgs in the top of the stack in double array of char format. */
+  for(index = size - 1; index >= 0; index--) {
+    /* If there are extra end of string chars, ignore them. */
+    if(command[index] != 0 || command[index + 1] != 0) {
+      *esp_c = command[index];
+      esp_c--;
+    }
+  }
+  
+  char* args_first = esp_c;
+  
+  *((uint8_t*)esp_c) = 0;
+  uint32_t* esp_p = (uint32_t*)esp_c;
+  esp_p--;
+  *esp_p = 0;
+  esp_p--;
+  
+  char* args_last;
+  int size_args = 0;
+  /* Put the pointers */
+  for(args_last = PHYS_BASE - 2; args_last >= args_first; args_last--) {
+    if(*args_last == 0) {
+      *esp_p = (uint32_t)args_last + 1;
+      size_args++;
+      esp_p--;
+    }
+  }
+  
+  *esp_p = (uint32_t)(esp_p + 1);
+  esp_p--;
+  /* Put the argc */
+  *esp_p = (uint32_t)size_args;
+  esp_p--;
+  *esp_p = 0;
+  
+  return (void*)esp_p;
+}
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
