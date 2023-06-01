@@ -188,6 +188,20 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+#ifdef USERPROG
+  // Hilo actual es el padre que crea un hijo.
+  struct thread *cur = thread_current ();
+  t->padre = cur;
+
+  // Creamos la estructura "process" asociada al hijo.
+  struct process* p = (struct process*)calloc(1, sizeof(struct process));
+  p->tid = tid;
+  p->t = t;
+  p->exit_status = -1; // Indefinido.
+  p->elem = t->elem;
+  list_push_back(&cur->hijos, &p->elem);
+#endif
+  
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -511,6 +525,11 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+
+#ifdef USERPROG
+  list_init(&t->hijos);
+#endif
+  
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
