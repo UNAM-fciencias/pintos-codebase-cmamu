@@ -184,18 +184,17 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
-  /****************************************************************************/
 #ifdef USERPROG
-  struct thread *cur = thread_current ();
-  t->padre = cur;
-  struct process* p = (struct process*)calloc(1, sizeof(struct process));
+  struct thread *cur = thread_current (); // Actual.
+  t->father = cur;                         // Guardamos al actual cómo padre del nuevo.
+
+  struct process* p = (struct process*)calloc(1, sizeof(struct process)); // Estructura
   p->tid = tid;
   p->t = t;
   p->exit_status = -1;
   p->elem = t->elem;
-  list_push_back(&cur->hijos, &p->elem);
+  list_push_back(&cur->children, &p->elem);
 #endif
-/***************************************************************************/
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -472,9 +471,8 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
-  /********************************************************/
-  enum intr_level old_level;
-  /********************************************************/
+  enum intr_level old_level; // P05.
+
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT (name != NULL);
@@ -485,16 +483,15 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
 
-  /*************************************************************************/
+  /* Práctica 5. */
 #ifdef USERPROG
-  list_init(&t->hijos);
+  list_init(&t->children);
 #endif
   
   t->magic = THREAD_MAGIC;
-  old_level = intr_disable ();
+  old_level = intr_disable (); // P05.
   list_push_back (&all_list, &t->allelem);
-  intr_set_level (old_level);
-  /*************************************************************************/
+  intr_set_level (old_level); // P05.
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

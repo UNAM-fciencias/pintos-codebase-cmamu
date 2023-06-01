@@ -40,45 +40,28 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  /****************************************************************/
+  /* Práctica 5. */
   struct thread *cur = thread_current ();
   sema_init(&cur->wait, 0);
-  /****************************************************************/
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
 
-  /****************************************************************/
+  /* Práctica 5 - exec. */
   sema_init(&cur->cargado, 0);
   sema_down(&cur->cargado);
 
   if (tid == TID_ERROR) {
     palloc_free_page (fn_copy);
-    return -1;
+
+    return -1; // P05.
   }
+
   if (!cur->cargado_correctamente)
     return -1;
 
   return tid;
-  /******************************************************************/
 }
-
-/*
-static size_t
-str_tokenize (char* str, char token)
-{
-  size_t size = 0;
-  char* tmp = str;
-  while(*tmp != 0) {
-    
-    if(*tmp == token)
-      *tmp = 0;
-    
-    tmp++;
-    size++;
-  }
-  return size;
-}*/
 
 /* A thread function that loads a user process and starts it
    running. */
@@ -107,25 +90,23 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  /****************************************************/
+  /* Práctica 5. */
   struct thread *cur = thread_current ();
-  sema_up(&cur->padre->cargado);
-  /****************************************************/
+  sema_up(&cur->father->cargado);
 
   /* If load failed, quit. */
   
   if (!success) {
-    /**************************************************/
-    cur->padre->cargado_correctamente = false;
-    /**************************************************/
+    // P05.
+    cur->father->cargado_correctamente = false;
 
     thread_exit ();
   } else {
 		if_.esp = put_args(file_name, size);
     strlcpy (thread_current()->name, file_name, sizeof thread_current()->name);
-    /**************************************************/
-    cur->padre->cargado_correctamente = true;
-    /**************************************************/
+
+    // P05.
+    cur->father->cargado_correctamente = true;
 	}
 	
 	palloc_free_page (file_name);
@@ -152,12 +133,13 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  /*timer_sleep(200);
-  return -1;*/
+  //timer_sleep(200);
+  //return -1;
 
-  /********************************************************************/
+  /* Práctica 5. */
+
   struct thread *cur = thread_current ();
-  struct list *hijos = &cur->hijos;
+  struct list *hijos = &cur->children;
   struct list_elem *hijo_elem;
 
   if (!list_empty(hijos)) {
@@ -170,9 +152,9 @@ process_wait (tid_t child_tid UNUSED)
       }
     }
   }
+
   return -1;
 }
-/************************************************************************/
 
 /* Free the current process's resources. */
 void

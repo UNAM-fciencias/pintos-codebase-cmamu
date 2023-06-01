@@ -1,5 +1,5 @@
 #include "userprog/syscall.h"
-#include "userprog/process.h"
+#include "userprog/process.h" // P05.
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
@@ -32,15 +32,20 @@ syscall_handler (struct intr_frame *f UNUSED)
       
       break;
     }
-    case SYS_EXIT: {
+    case SYS_EXIT: { // P05.
+
+      // Obtención del argumento.
       int status = *esp;
 
       printf("%s: exit(%d)\n", thread_current()->name, status);
 
+      // Guardado del valor de salida.
       struct thread *cur = thread_current ();
-      struct thread *padre = cur->padre;
+      struct thread *padre = cur->father;
       if (padre != NULL) {
-        struct list *hijos = &padre->hijos;
+        // Buscar al hijo en la lista de hijos
+        // del padre y asignar el exit_status.
+        struct list *hijos = &padre->children;
         struct list_elem *hijo_elem;
         if (!list_empty(hijos)) {
           for (hijo_elem = list_front(hijos); hijo_elem != list_end(hijos); hijo_elem = list_next(hijo_elem)) {
@@ -57,15 +62,18 @@ syscall_handler (struct intr_frame *f UNUSED)
 
       break;
     }
-    case SYS_WAIT: {
+    case SYS_WAIT: { // P05.
+
+      // Obtención del argumento.
       tid_t child_tid = *esp;
 
       f->eax = process_wait(child_tid);
 
       break;
     }
-    /***************************************************************/
-    case SYS_EXEC: {
+    case SYS_EXEC: { // P05.
+      
+      // Obtención del argumento.
       const char* cmd = (char*)*esp;
 
       f->eax = (uint32_t) process_execute(cmd);
